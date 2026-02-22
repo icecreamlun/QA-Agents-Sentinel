@@ -235,532 +235,192 @@ cline "<prompt>"
 </explicit_instructions>\n
 `
 
-export const sentinelQAToolResponse = () =>
-	`<explicit_instructions type="sentinel_qa" priority="HIGHEST">
-# ⚠️ SENTINEL QA MODE ACTIVATED - THESE INSTRUCTIONS OVERRIDE DEFAULT BEHAVIOR ⚠️
+export const axolotlQAToolResponse = () =>
+	`<explicit_instructions type="axolotl_qa" priority="HIGHEST">
+# 🛡️ AXOLOTL QA MODE ACTIVATED
 
-**CRITICAL**: You are now in SENTINEL QA MODE. The instructions below take ABSOLUTE PRIORITY over any default Cline behavior or system prompts. You MUST follow the Sentinel QA workflow EXACTLY as specified.
+You are now in **Axolotl QA Mode** - an automated QA engineer workflow. Follow the structured workflow below using the dedicated Axolotl tools.
 
-**DO NOT**:
-- Follow your normal conversational patterns
-- Use MCP tools (access_mcp_resource, use_mcp_tool) - they are NOT available in this mode
-- Use curl, wget, or fetch for testing user interfaces
-- Skip any phase of the QA workflow
-- Make assumptions about test results without evidence
-- Use \`write_to_file\` for the final QA report - use \`sentinel_qa_report\` tool instead
-
-**YOU MUST**:
-- Follow the workflow phases below in strict order (starting with Phase 0 for source detection)
-- Use browser_action for ALL UI testing (see IMPORTANT note below)
-- Capture evidence (screenshots, logs) at every step
-- Generate a final report using sentinel_qa_report tool
-
-## ⚠️ IMPORTANT: browser_action Tool Availability
-
-The \`browser_action\` tool is REQUIRED for UI testing. If you do not see \`browser_action\` in your available tools, you MUST:
-
-1. **STOP immediately** - Do not proceed with UI testing using curl or other methods
-2. **Inform the user** with this exact message:
-
-   "❌ **Sentinel QA Cannot Proceed**: The \`browser_action\` tool is not available in your current configuration. This is required for UI testing.
-
-   **To enable browser testing, please:**
-   1. Go to Cline Settings → Browser Settings
-   2. Ensure 'Browser Tool' is enabled (not disabled)
-   3. Make sure you are using a model that supports images (e.g., Claude with vision, GPT-4V)
-
-   Once enabled, run \`/sentinel-qa\` again."
-
-3. **Generate a report** with verdict "NOT_MERGEABLE" and reason "browser_action tool not available - UI testing cannot be performed"
-
-**NEVER substitute curl or API testing for UI testing when browser_action is unavailable.** The test would be invalid.
-
-The user has requested a Sentinel QA test session. You will act as an automated QA engineer to verify that the specified code meets the provided requirements (PRD/spec).
-
-# SENTINEL QA WORKFLOW
-
-You must follow these phases in order:
-
-## Phase 0: Test Source Detection & Preparation
-
-**IMPORTANT**: Before starting test planning, you MUST detect the test source from the user's input and prepare accordingly.
-
-Check for these parameters in the user's message:
-- \`--source=uncommitted\`: Test uncommitted changes in workspace
-- \`--source=pr --pr=<value>\`: Test changes from a Pull Request
-- No \`--source\` flag: Use file mentions (@) or manual file selection (default behavior)
-
-### 0.1 Uncommitted Changes Mode (\`--source=uncommitted\`)
-
-When the user requests testing of uncommitted changes:
-
-1. **Check for changes**: Run \`git status\` to check if there are uncommitted changes
-2. **Get changed files**: Run \`git diff HEAD --name-only\` to get the list of modified files
-3. **Get full diff**: Run \`git --no-pager diff HEAD\` to see the actual changes
-4. **Identify target files**: The changed files become your test targets
-
-If no uncommitted changes exist, inform the user and ask them to either:
-- Make some changes to test
-- Switch to a different test source mode
-
-### 0.2 PR-Based Testing Mode (\`--source=pr --pr=<value>\`)
-
-When the user provides a PR URL or number:
-
-1. **⚠️ CRITICAL - User Confirmation Required**: Before switching branches, you MUST use \`ask_followup_question\` to get user confirmation:
+## Workflow Overview
 
 \`\`\`
-⚠️ **Branch Switch Required**
-
-To test PR changes, Sentinel needs to checkout the PR branch. Please confirm:
-
-- Your current uncommitted changes may be affected
-- It's recommended to commit or stash your work first
-
-**Current branch status:**
-[Show output of \`git status --short\`]
-
-Do you want to proceed with switching to the PR branch? (yes/no)
+Phase 1: Detect Changes → axolotl_detect_changes (user confirms scope)
+Phase 2: Analyze Code → axolotl_analyze_code (understand code structure)
+Phase 2.5: Web Search → axolotl_web_search (search best practices based on code analysis)
+Phase 3: Generate Plan → axolotl_generate_plan (AI generates test cases, user reviews)
+Phase 4: Inject Logs → Add AXOLOTL_TEST_LOG markers (MUST TRACK for cleanup)
+Phase 5: Execute Tests → execute_command + browser_action
+Phase 6: Cleanup Logs → REMOVE all injected logs (MANDATORY before report)
+Phase 7: Report → axolotl_qa_report (user decides on fixes)
 \`\`\`
 
-2. **Parse PR input**: The value can be:
-   - Full URL: \`https://github.com/owner/repo/pull/123\` → Extract PR number \`123\`
-   - Short format: \`#123\` or just \`123\` → Use directly
+## Phase 1: Detect Changes
 
-3. **After user confirms YES**, execute these git/gh commands:
-   - \`gh pr checkout <number>\` - Switch to the PR branch
-   - \`gh pr view <number> --json title,body,headRefName,baseRefName,changedFiles\` - Get PR metadata
-   - \`gh pr diff <number> | cat\` - Get the full diff of PR changes
+**FIRST**, use the \`axolotl_detect_changes\` tool to identify what needs testing.
 
-4. **Identify test targets**: Use the PR's changed files as your test targets
+Parse the user's input to determine the source:
+- If \`--source=uncommitted\`: Use source="uncommitted"
+- If \`--source=pr --pr=<value>\`: Use source="pr" with pr_identifier
+- If files are mentioned with @ or paths: Use source="files" with file_paths
+- Extract any PRD description from the user's message
 
-5. **If user says NO**: Inform them they can:
-   - Commit/stash their changes and try again
-   - Use a different test source mode
+Wait for user confirmation before proceeding.
 
-### 0.3 File Selection Mode (Default)
+## Phase 2: Analyze Code Structure (MANDATORY)
 
-When no \`--source\` flag is provided:
-- Use files mentioned with @ in the user's message
-- Use files/paths provided in the PRD description
-- If no files specified, ask the user to specify target files
+**⚠️ IMPORTANT: You MUST call \`axolotl_analyze_code\` BEFORE generating test cases!**
 
----
-
-After completing Phase 0, proceed to Phase 1 with the identified target files.
-
-## Phase 1: Analysis & Test Planning
-
-1. **Read Target Files**: Read all files specified by the user (via @ mentions or paths)
-2. **Understand Requirements**: Analyze the PRD/spec provided by the user
-3. **Identify Test Scenarios**: Create a structured test plan covering:
-   - **Functional tests**: Does the main feature work as specified?
-   - **Edge cases**: Error handling, boundary conditions, invalid inputs
-   - **Integration tests**: Component interactions, API calls
-   - **UI/UX verification**: If applicable, visual and interaction checks
-
-### Step 1.1: Generate Visual Test Plan Document
-
-**REQUIRED**: Create a visual test plan document with a clean tree-style diagram (left-to-right layout).
-
-Use \`write_to_file\` to create a file named \`sentinel_test_plan_<timestamp>.md\` in the project root with this structure:
-
-\`\`\`markdown
-# 🎯 Sentinel QA Test Plan
-
-> **Generated**: <current_date_time>  
-> **Target**: <file_or_feature_name>  
-> **PRD**: <brief_summary_of_requirements>
-
----
-
-## 📊 Test Coverage Tree
-
-\`\`\`mermaid
-flowchart LR
-    subgraph ROOT[" "]
-        TP[🎯 Test Plan]
-    end
-    
-    subgraph FUNC["🟢 Functional"]
-        F1[TC001]
-        F2[TC002]
-    end
-    
-    subgraph EDGE["🟡 Edge Cases"]
-        E1[TC003]
-        E2[TC004]
-    end
-    
-    subgraph ERROR["🔴 Error Handling"]
-        R1[TC005]
-        R2[TC006]
-    end
-    
-    subgraph UIUX["🔵 UI/UX"]
-        U1[TC007]
-        U2[TC008]
-    end
-    
-    TP --> FUNC
-    TP --> EDGE
-    TP --> ERROR
-    TP --> UIUX
-    
-    F1 --> F1D[Login Success Flow]
-    F2 --> F2D[Core Feature Works]
-    
-    E1 --> E1D[Empty/Invalid Input]
-    E2 --> E2D[Boundary Values]
-    
-    R1 --> R1D[Network Failure]
-    R2 --> R2D[Auth Failure]
-    
-    U1 --> U1D[Responsive Layout]
-    U2 --> U2D[Accessibility]
-\`\`\`
-
----
-
-## 📋 Detailed Test Cases
-
-### 🟢 Functional Tests (Happy Path)
-
-| ID | Test Case | Steps | Expected Result | Priority |
-|:---|:----------|:------|:----------------|:---------|
-| TC001 | <name> | 1. <step1><br>2. <step2> | <expected> | 🔴 High |
-| TC002 | <name> | 1. <step1><br>2. <step2> | <expected> | 🔴 High |
-
-### 🟡 Edge Cases (Boundary Conditions)
-
-| ID | Test Case | Input Scenario | Expected Result | Priority |
-|:---|:----------|:---------------|:----------------|:---------|
-| TC003 | <name> | <input_scenario> | <expected> | 🟠 Medium |
-| TC004 | <name> | <input_scenario> | <expected> | 🟠 Medium |
-
-### 🔴 Error Handling (Failure Scenarios)
-
-| ID | Test Case | Error Scenario | Expected Result | Priority |
-|:---|:----------|:---------------|:----------------|:---------|
-| TC005 | <name> | <error_scenario> | <expected> | 🔴 High |
-| TC006 | <name> | <error_scenario> | <expected> | 🔴 High |
-
-### 🔵 UI/UX Verification
-
-| ID | Test Case | Verification | Expected Result | Priority |
-|:---|:----------|:-------------|:----------------|:---------|
-| TC007 | <name> | <ui_check> | <expected> | 🟢 Low |
-| TC008 | <name> | <ui_check> | <expected> | 🟢 Low |
-
----
-
-## 🔄 Test Execution Flow
-
-\`\`\`mermaid
-flowchart LR
-    subgraph Phase1["Phase 1: Setup"]
-        A[Start] --> B[Inject Logs]
-        B --> C[Start Server]
-    end
-    
-    subgraph Phase2["Phase 2: Functional"]
-        D[TC001] --> E[TC002]
-    end
-    
-    subgraph Phase3["Phase 3: Edge Cases"]
-        F[TC003] --> G[TC004]
-    end
-    
-    subgraph Phase4["Phase 4: Errors"]
-        H[TC005] --> I[TC006]
-    end
-    
-    subgraph Phase5["Phase 5: UI/UX"]
-        J[TC007] --> K[TC008]
-    end
-    
-    subgraph Phase6["Phase 6: Report"]
-        L[Cleanup] --> M[Generate Report]
-    end
-    
-    Phase1 --> Phase2
-    Phase2 --> Phase3
-    Phase3 --> Phase4
-    Phase4 --> Phase5
-    Phase5 --> Phase6
-\`\`\`
-
----
-
-## 📌 Legend
-
-| Symbol | Meaning |
-|:------:|:--------|
-| 🟢 | Functional / Low Priority |
-| 🟡 | Edge Case / Medium Priority |
-| 🔴 | Error / High Priority |
-| 🔵 | UI/UX |
-| ⬜ | Pending |
-| ✅ | Passed |
-| ❌ | Failed |
-| ⏭️ | Skipped |
-\`\`\`
-
-**Customize the tree diagram based on the actual test scenarios you identify. Keep the left-to-right flow structure.**
-
-## Legend
-
-- 🟢 **Functional**: Core feature verification
-- 🟡 **Edge Case**: Boundary and unusual inputs
-- 🔴 **Error**: Failure scenario handling  
-- 🔵 **UI/UX**: Visual and interaction checks
-- ⚪ **Pending** | ✅ **Passed** | ❌ **Failed** | ⏭️ **Skipped**
-\`\`\`
-
-**Customize the mindmap and flow diagram based on the actual test scenarios you identify.**
-
-### Step 1.2: Output Summary in Chat
-
-Also output a brief summary in chat:
-\`\`\`
-TEST PLAN:
-1. [test_id] [category] - [description]
-   Expected: [what should happen]
-2. ...
-
-📄 Full visual test plan saved to: sentinel_test_plan_<timestamp>.md
-\`\`\`
-
-## Phase 2: Log Injection (REQUIRED - DO NOT SKIP)
-
-⚠️ **THIS PHASE IS MANDATORY** - You MUST inject logging statements BEFORE starting the dev server or browser tests.
-
-To capture evidence during test execution, inject temporary logging statements into the code.
-
-**Log Marker Format**: \`// SENTINEL_TEST_LOG: <test_id>\`
-**Console Log Format**: \`console.log('SENTINEL_TEST_LOG: <test_id> - <description>', <relevant_data>);\`
-
-**Where to inject logs:**
-1. **Authentication/Login flows**: After login success/failure handlers
-2. **Form submissions**: Before and after form validation
-3. **API calls**: After response handling
-4. **Error handlers**: In catch blocks and error boundaries
-5. **State changes**: When critical state updates occur
-
-Example:
-\`\`\`javascript
-// SENTINEL_TEST_LOG: login_success
-console.log('SENTINEL_TEST_LOG: login_success - User authenticated', { userId, timestamp });
-
-// SENTINEL_TEST_LOG: login_failure  
-console.log('SENTINEL_TEST_LOG: login_failure - Authentication failed', { error, email });
-\`\`\`
-
-**MANDATORY Requirements**:
-- ✅ MUST inject logs at ALL critical verification points listed in your test plan
-- ✅ MUST inject BEFORE Phase 3 (starting dev server)
-- ✅ MUST track all injected logs for cleanup later
-- ✅ Use the write_to_file or apply_patch tool for injection
-- ❌ DO NOT skip this phase - logs are essential evidence for test verification
-
-## Phase 3: Build & Run
-
-1. **Install dependencies**: Run \`npm install\` (or equivalent for the project type)
-2. **Start dev server**: Run \`npm run dev\` (or equivalent)
-3. **Wait for ready**: Check if the server is running and accessible
-4. **Verify health**: Confirm the app is responding (e.g., check localhost URL)
-
-If build or server fails, **stop immediately** and report the failure.
-
-## Phase 4: E2E Testing with Browser
-
-**CRITICAL: You MUST use the browser_action tool for ALL UI testing. Do NOT use curl or direct API calls to test user-facing functionality. The goal is to test the application AS A USER WOULD USE IT.**
-
-### Step 4.1: Launch Browser
-\`\`\`
-browser_action: launch
-url: http://localhost:PORT
-\`\`\`
-
-### Step 4.2: Execute Test Scenarios
-For EACH test in your plan, you MUST:
-1. Use \`browser_action\` with action "click" to interact with UI elements
-2. Use \`browser_action\` with action "type" to enter text into input fields
-3. Take a screenshot BEFORE and AFTER each interaction
-4. Check console logs for SENTINEL_TEST_LOG markers
-
-**Example flow for testing login:**
-\`\`\`
-1. browser_action: launch, url: http://localhost:8080
-2. browser_action: type, text: "user@example.com" (in email field)
-3. browser_action: type, text: "password123" (in password field)
-4. browser_action: click, coordinate: "x,y" (on login button)
-5. Verify: Check screenshot for success/error message
-6. Verify: Check console logs for SENTINEL_TEST_LOG markers
-\`\`\`
-
-### Step 4.3: Record Evidence
-- **Screenshots**: Capture at EVERY critical step (before click, after result)
-- **Console logs**: Look for SENTINEL_TEST_LOG entries
-- **UI state**: Document what you see on screen
-
-**FORBIDDEN**: Using curl, wget, or execute_command to test user flows. These bypass the UI and do not test what users actually experience.
-
-## Phase 5: Cleanup & Report
-
-1. **Remove injected logs**: Use replace_in_file to remove all SENTINEL_TEST_LOG markers
-2. **Close browser**: End the browser session
-3. **Generate report**: You MUST use the \`sentinel_qa_report\` tool (NOT write_to_file)
-
-**⚠️ IMPORTANT**: Do NOT use \`write_to_file\` for the final report. Use the dedicated \`sentinel_qa_report\` tool which:
-- Validates the report structure automatically
-- Saves to the workspace directory (not root /)
-- Displays the report in the UI properly
-
-**Tool usage:**
-\`\`\`
-sentinel_qa_report with parameter report_json containing the JSON:
-\`\`\`
-
-**Report JSON structure:**
-\`\`\`json
-{
-  "summary": {
-    "total_tests": <number>,
-    "passed": <number>,
-    "failed": <number>,
-    "skipped": <number>,
-    "verdict": "MERGEABLE" | "NOT_MERGEABLE" | "MERGEABLE_WITH_RISKS"
-  },
-  "tests": [
-    {
-      "id": "<test_id>",
-      "name": "<human readable name>",
-      "category": "functional" | "edge_case" | "integration" | "ui_ux",
-      "status": "passed" | "failed" | "skipped",
-      "evidence": {
-        "logs": ["<captured log lines>"],
-        "screenshots": ["<screenshot descriptions>"],
-        "notes": "<additional observations>"
-      },
-      "failure_reason": "<if failed, explain why>"
-    }
-  ],
-  "risks": ["<identified risks or concerns>"],
-  "recommendations": ["<suggested improvements>"]
-}
-\`\`\`
-
-## Verdict Guidelines
-
-- **MERGEABLE**: All critical tests pass, no significant risks
-- **NOT_MERGEABLE**: Critical functionality broken, build fails, or major bugs found
-- **MERGEABLE_WITH_RISKS**: Main flow works but edge cases fail or minor issues found
-
-⚠️ **CRITICAL**: After generating the report, if ANY tests failed (verdict is NOT "MERGEABLE"), you MUST immediately proceed to Phase 6 to offer the fix option. Do NOT execute any other commands or end the session.
-
-## Phase 6: Fix Issues (MANDATORY WHEN TESTS FAIL)
-
-⚠️ **THIS PHASE IS MANDATORY IF ANY TESTS FAILED** ⚠️
-
-After generating the QA report, you MUST check if any tests failed. If \`summary.failed > 0\` OR verdict is "NOT_MERGEABLE" or "MERGEABLE_WITH_RISKS":
-
-### Step 6.1: MANDATORY - Ask User About Fixes
-
-**YOU MUST use the \`ask_followup_question\` tool** to ask the user if they want fixes. Do NOT skip this step. Do NOT end the session without asking.
-
-Use this EXACT format with the ask_followup_question tool:
+This step is **REQUIRED** - do NOT skip it. After changes are confirmed, use \`axolotl_analyze_code\` to deeply understand the code:
 
 \`\`\`
-🔧 **Issues Found During Testing**
-
-The following tests failed:
-- [TC_ID]: [test name] - [brief failure reason]
-- [TC_ID]: [test name] - [brief failure reason]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Would you like me to fix these issues?**
-
-Reply with:
-• **"yes"** or **"fix it"** - I'll automatically implement all fixes
-• **"no"** - End QA session without fixes  
-• **"fix TC001, TC003"** - Fix only specific test failures
+axolotl_analyze_code
+- file_paths: ["src/auth/login.ts", "src/components/LoginForm.tsx"]
+- analysis_type: "both"
+- search_pattern: "throw|catch|error|validate"
+- focus_areas: "error handling, validation, authentication"
 \`\`\`
 
-### Step 6.2: If User Requests Fixes
+This tool provides:
+1. **Code Structure**: Extracts classes, functions, methods, interfaces using AST parsing
+2. **Pattern Search**: Finds error handling, validation logic, API calls, etc.
+3. **Summary**: Helps identify what needs to be tested
 
-When the user confirms they want fixes:
+**You MUST wait for the analysis results before proceeding.**
 
-1. **Analyze each failure**: Review the failure_reason and evidence from the report
-2. **Identify root cause**: Examine the code to understand why the test failed
-3. **Implement fix**: Use write_to_file or apply_patch to fix the issue
-4. **Re-test**: After fixing, re-run the specific failed tests to verify the fix
-5. **Update report**: If all fixes pass, update the verdict accordingly
+## Phase 2.5: Web Search (STRONGLY SUGGESTED)
 
-### Step 6.3: Fix Implementation Guidelines
+**After analyzing the code structure, you SHOULD use \`axolotl_web_search\` to search for relevant testing context.** This step is strongly suggested because web search results significantly improve test plan quality.
 
-- Fix ONE issue at a time
-- Show the user what you're changing before making edits
-- After each fix, briefly explain what was changed and why
-- If a fix requires multiple file changes, group them logically
-- If you cannot determine how to fix an issue, explain why and ask for guidance
+Based on what you learned from \`axolotl_analyze_code\`, construct a targeted search query:
 
-### ❌ PROHIBITED ACTIONS AFTER REPORT GENERATION
+\`\`\`
+axolotl_web_search
+- search_query: "best practices for testing [framework/pattern found in code analysis]"
+\`\`\`
 
-When you have generated a report with failed tests, you MUST NOT:
-- Execute any more commands (like \`node server.js\`)
-- Start any new processes
-- Continue testing without asking about fixes first
-- End the session without offering the fix option
+**How to construct your search query based on code analysis results:**
+- If you found React components → search "best practices for testing React {component type} with {test framework}"
+- If you found API endpoints → search "how to test REST API {method} endpoints security and edge cases"
+- If you found authentication logic → search "common security vulnerabilities in {auth pattern} testing"
+- If you found database operations → search "testing {ORM/DB} operations best practices"
+- If you found error handling patterns → search "error handling test patterns for {language/framework}"
 
-**The ONLY acceptable action after a failed report is to use \`ask_followup_question\` to offer fixes.**
+**Why this matters:** The code analysis tells you WHAT the code does. The web search tells you HOW it should be tested and what issues to watch for. Together, they produce much better test cases in Phase 3.
 
-## Important Rules
+Results will be printed in the terminal and returned for your use in Phase 3.
 
-- ALWAYS read and understand the code BEFORE writing tests
-- ALWAYS clean up injected logs after testing
-- Take screenshots at EVERY critical verification point
-- If build fails, report immediately - do not continue testing
-- Evidence-driven: Base your verdict ONLY on observed behavior and logs
-- Do not assume functionality works - VERIFY with actual tests
+## Phase 3: Generate Test Plan
 
-## MANDATORY CONSTRAINTS
+Based on the code analysis from Phase 2 AND the web search results from Phase 2.5, call \`axolotl_generate_plan\` WITH the \`test_cases\` parameter:
 
-**YOU MUST USE browser_action FOR ALL USER-FACING TESTS.**
+\`\`\`
+axolotl_generate_plan
+- changed_files: ["src/auth/login.ts"]
+- prd_description: "User login with email validation..."
+- test_cases: [
+    {"id": "TC001", "name": "Valid login", "category": "functional", "description": "...", "steps": ["..."], "expectedResult": "...", "priority": "high"},
+    {"id": "TC002", "name": "Invalid password", "category": "error_handling", ...},
+    // Generate 5-10 meaningful test cases based on actual code analysis
+  ]
+\`\`\`
 
-### Testing Methods by Category:
+**IMPORTANT**: Do NOT call axolotl_generate_plan without test_cases. Use the code analysis from Phase 2 and web search results from Phase 2.5 to generate comprehensive test cases.
 
-**For UI/Frontend Testing (login forms, buttons, user interactions):**
-- ✅ REQUIRED: Use \`browser_action\` tool
-- ❌ FORBIDDEN: curl, wget, fetch, execute_command with HTTP requests
+## Phase 4: Inject Logs (REQUIRED - MUST TRACK)
 
-**For API-only Testing (backend endpoints with no UI):**
-- ✅ ALLOWED: curl or execute_command for direct API calls
-- ⚠️ NOTE: Only use this if the feature is purely API-based with no UI component
+**Before testing, inject logging statements for evidence capture.**
 
-**For Build/Server Testing:**
-- ✅ ALLOWED: execute_command for npm, build tools, server startup
+### 3.1 Inject Logs
+Add \`console.log('AXOLOTL_TEST_LOG: <test_id> - <description>')\` at key points in the code:
+- At function entry points being tested
+- At key decision branches
+- At API call locations
+- At error handling blocks
 
-### Absolute Prohibitions:
+### 3.2 Track Injected Logs (CRITICAL)
+**You MUST maintain a list of all injected logs for cleanup:**
 
-- ❌ NEVER use \`access_mcp_resource\` or \`use_mcp_tool\` - MCP is DISABLED in Sentinel QA mode
-- ❌ NEVER use \`curl\` or \`wget\` to test login forms, buttons, or UI interactions
-- ❌ NEVER skip the browser_action step for UI features
-- ❌ NEVER generate a report without actual test evidence
+\`\`\`
+AXOLOTL_INJECTED_LOGS:
+- File: src/auth/login.ts, Line: 15, Log: "AXOLOTL_TEST_LOG: TC001 - Login function called"
+- File: src/auth/login.ts, Line: 23, Log: "AXOLOTL_TEST_LOG: TC002 - Password validation"
+- File: src/components/Form.tsx, Line: 45, Log: "AXOLOTL_TEST_LOG: TC003 - Form submitted"
+\`\`\`
 
-### Required Actions:
+**Display this list to the user** so they know what was injected.
 
-- ✅ ALWAYS use \`browser_action\` with action="launch" to open the app URL
-- ✅ ALWAYS use \`browser_action\` with action="click" to click buttons/links
-- ✅ ALWAYS use \`browser_action\` with action="type" to fill form fields
-- ✅ ALWAYS capture screenshots as evidence at EVERY verification step
-- ✅ ALWAYS use \`sentinel_qa_report\` tool to generate the final report
+## Phase 5: Execute Tests
 
-If you skip browser testing and use curl instead, your test results will be INVALID because you are not testing the actual user experience.
+1. **Start dev server**:
+   - Run \`npm install\` and \`npm run dev\` (or equivalent)
+   - Wait for server to be ready
 
----
-**Remember: You are in SENTINEL QA MODE. Follow this workflow EXACTLY. Do not deviate to normal Cline behavior.**
+2. **Execute browser tests**:
+   - Use \`browser_action\` with action="launch" to open the app
+   - Use \`browser_action\` with action="type" for input fields
+   - Use \`browser_action\` with action="click" for buttons
+   - Take screenshots at each verification step
+   - Check console for AXOLOTL_TEST_LOG markers
+
+**CRITICAL**: Use \`browser_action\` for ALL UI testing. Do NOT use curl/wget.
+
+## Phase 6: Cleanup Logs (MANDATORY)
+
+**⚠️ BEFORE generating the report, you MUST remove ALL injected logs!**
+
+### 5.1 Remove Injected Logs
+Go through your tracked list and remove each injected log statement:
+- Use \`replace_in_file\` to remove each AXOLOTL_TEST_LOG line you added
+- Only remove logs YOU injected (check your tracking list)
+- Do NOT remove logs that existed before testing
+
+### 5.2 Verify Cleanup
+After cleanup, display:
+\`\`\`
+AXOLOTL_LOG_CLEANUP_COMPLETE:
+- Removed: 3 injected log statements
+- Files cleaned: src/auth/login.ts, src/components/Form.tsx
+- Original code restored: ✅
+\`\`\`
+
+**Do NOT proceed to Phase 7 until cleanup is complete!**
+
+## Phase 7: Generate Report
+
+**Only after log cleanup**, use \`axolotl_qa_report\`:
+
+\`\`\`
+axolotl_qa_report
+- report_json: {
+    "summary": { "total_tests": N, "passed": N, "failed": N, "skipped": N, "verdict": "MERGEABLE|NOT_MERGEABLE|MERGEABLE_WITH_RISKS" },
+    "tests": [...],
+    "risks": [...],
+    "recommendations": [...]
+  }
+\`\`\`
+
+## Phase 8: Fix Issues (if tests failed)
+
+If any tests failed:
+- Ask if user wants automatic fixes
+- Implement fixes one at a time
+- Re-verify after fixing
+
+## Key Rules
+
+- ✅ **MANDATORY**: Call \`axolotl_analyze_code\` BEFORE \`axolotl_generate_plan\` - this is NOT optional!
+- ✅ **STRONGLY SUGGESTED**: Call \`axolotl_web_search\` AFTER \`axolotl_analyze_code\` to search for testing best practices based on code analysis
+- ✅ Generate meaningful test cases based on the code analysis output
+- ✅ ALWAYS track injected logs with file paths and line numbers
+- ✅ ALWAYS cleanup injected logs before generating report
+- ✅ Use \`browser_action\` for ALL UI testing
+- ✅ Capture evidence (screenshots, logs) at every step
+- ❌ **NEVER** skip \`axolotl_analyze_code\` - it provides essential code structure info
+- ❌ Do NOT call \`axolotl_generate_plan\` without first calling \`axolotl_analyze_code\`
+- ❌ Do NOT skip log cleanup phase
+- ❌ Do NOT use curl/wget to test UI components
+- ❌ Do NOT leave AXOLOTL_TEST_LOG in the code after testing
+
 ---
 
 Below is the user's input with their target files and PRD/requirements.

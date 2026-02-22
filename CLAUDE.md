@@ -1,154 +1,95 @@
-# CLAUDE.md
+# Axolotl Project - Claude Instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project Structure
 
-It captures tribal knowledge—the nuanced, non-obvious patterns that make the difference between a quick fix and hours of back-and-forth & human intervention.
+- `static_site/` - Login & signup HTML pages (deployed as DigitalOcean Static Site)
+- `server/` - Fastify auth backend (deployed as DigitalOcean Service)
+- `src/` - VS Code extension source
 
-**When to add to this file:**
-- User had to intervene, correct, or hand-hold
-- Multiple back-and-forth attempts were needed to get something working
-- You discovered something that required reading many files to understand
-- A change touched files you wouldn't have guessed
-- Something worked differently than you expected
-- User explicitly asks to "add this to CLAUDE.md"
+## Deployment Architecture
 
-**Proactively suggest additions** when any of the above happen—don't wait to be asked.
+- **Static site**: DigitalOcean App Platform static site component
+  - Source: `static_site/` directory
+  - Build: `npm run build` -> `bash build.sh` -> outputs to `dist/`
+  - `build.sh` uses `sed` to replace placeholder values with environment variables
+- **Server**: DigitalOcean App Platform service component
+  - Reads env vars: `INSFORGE_BASE_URL`, `INSFORGE_API_KEY`, `INSFORGE_ANON_KEY`, `APP_BASE_URL`
+- **Autodeploy**: Enabled on `axolotl-dev` branch of `Steven-wyf/Axolotl`
+- **Git remotes**: `origin` = icecreamlun (Axolotl-QA), `steven` = Steven-wyf
 
-**What NOT to add:** Stuff you can figure out from reading a few files, obvious patterns, or standard practices. This file should be high-signal, not comprehensive.
+## InsForge Configuration
 
-## Build & Development Commands
+- **Backend URL**: `https://4zxsfry3.us-west.insforge.app`
+- **Auth provider**: InsForge (replaced Supabase)
+- **Email verification**: 6-digit code (configured via InsForge dashboard, `verifyEmailMethod: "code"`)
+- **Password reset**: 6-digit code (`resetPasswordMethod: "code"`)
+- **OAuth providers**: Google, GitHub
+- **Password requirements**: min 6 chars (no uppercase/number/special requirements)
+- **Signup flow**: `POST /api/auth/users` → email verification code → `POST /api/auth/email/verify`
+- **Sign-in flow**: `POST /api/auth/sessions?client_type=desktop` → returns `accessToken` + `refreshToken`
+- **Static site uses direct REST API calls** (no SDK CDN — vanilla HTML with `fetch()`)
+- **Server uses direct REST API calls** (no `@insforge/sdk` — uses `fetch()` with API key)
 
-```bash
-npm run install:all    # Install dependencies (main + webview-ui)
-npm run dev            # Development mode (protos + watch)
-npm run compile        # Type-check + lint + build
-npm run protos         # Regenerate proto files after .proto changes
+### Server Environment Variables
 
-# Testing
-npm run test           # Run all tests
-npm run test:unit      # Unit tests only
-npm run test:unit -- --grep "pattern"  # Run specific test
-UPDATE_SNAPSHOTS=true npm run test:unit  # Update snapshots
-npm run test:integration  # Integration tests (launches VS Code)
-npm run test:e2e       # E2E tests with Playwright
+| Variable | Description |
+|----------|-------------|
+| `INSFORGE_BASE_URL` | InsForge backend URL (e.g., `https://4zxsfry3.us-west.insforge.app`) |
+| `INSFORGE_API_KEY` | Admin API key for DB operations and token validation |
+| `INSFORGE_ANON_KEY` | Public anon key (served to frontend via `/v1/config`) |
+| `APP_BASE_URL` | Frontend static site URL |
+| `CORS_ORIGIN` | Comma-separated allowed origins |
+| `PORT` | Server port (default: 8080) |
 
-npm run lint           # Lint check
-npm run package        # Package for production
-npm run dev:webview    # Webview UI hot reload dev server
-```
+---
 
-**Debug:** Press F5 in VS Code to launch Extension Development Host.
+## Lessons Learned (Anti-Patterns to Avoid)
 
-## Miscellaneous
-- This is a VS Code extension—check `package.json` for available scripts before trying to verify builds (e.g., `npm run compile`, not `npm run build`).
-- When creating PRs, if the change is user-facing and significant enough to warrant a changelog entry, run `npm run changeset` and create a patch changeset. Never create minor or major version bumps. Skip changesets for trivial fixes, internal refactors, or minor UI tweaks that users wouldn't notice.
+### 1. `build.sh` sed global replacement destroys placeholder values
 
-## gRPC/Protobuf Communication
-The extension and webview communicate via gRPC-like protocol over VS Code message passing.
+**Problem**: `build.sh` uses `sed -g` to replace ALL occurrences of a placeholder URL across the entire file. If you store that same placeholder string in a JavaScript constant for comparison, `sed` will replace it too, breaking the detection logic.
 
-**Proto files live in `proto/`** (e.g., `proto/cline/task.proto`, `proto/cline/ui.proto`)
-- Each feature domain has its own `.proto` file
-- For simple data, use shared types in `proto/cline/common.proto` (`StringRequest`, `Empty`, `Int64Request`)
-- For complex data, define custom messages in the feature's `.proto` file
-- Naming: Services `PascalCaseService`, RPCs `camelCase`, Messages `PascalCase`
-- For streaming responses, use `stream` keyword (see `subscribeToAuthCallback` in `account.proto`)
+**Rule**: Never embed the placeholder string in any variable meant to detect whether replacement happened.
 
-**Run `npm run protos`** after any proto changes—generates types in:
-- `src/shared/proto/` - Shared type definitions
-- `src/generated/grpc-js/` - Service implementations
-- `src/generated/nice-grpc/` - Promise-based clients
-- `src/generated/hosts/` - Generated handlers
+### 2. OTP digit count must match backend settings
 
-**Adding new enum values** (like a new `ClineSay` type) requires updating conversion mappings in `src/shared/proto-conversions/cline-message.ts`
+**Problem**: The InsForge backend is configured for 6-digit OTP codes. The frontend OTP input fields, validation, paste handlers, and auto-focus logic must all use 6.
 
-**Adding new RPC methods** requires:
-- Handler in `src/core/controller/<domain>/`
-- Call from webview via generated client: `UiServiceClient.scrollToSettings(StringRequest.create({ value: "browser" }))`
+**Checklist for changing OTP length (N digits)**:
+- [ ] HTML: Number of `<input>` elements in `#otp-inputs` = N
+- [ ] Hint text: "We sent an N-digit code..."
+- [ ] Auto-focus: `index < (N-1)` in input handler
+- [ ] Paste handler: `.slice(0, N)`
+- [ ] Paste focus: `Math.min(pastedData.length, N-1)`
+- [ ] Validation: `otp.length === N`
+- [ ] CSS: Input box width may need adjustment to fit N boxes in card width
 
-**Example—the `explain-changes` feature touched:**
-- `proto/cline/task.proto` - Added `ExplainChangesRequest` message and `explainChanges` RPC
-- `proto/cline/ui.proto` - Added `GENERATE_EXPLANATION = 29` to `ClineSay` enum
-- `src/shared/ExtensionMessage.ts` - Added `ClineSayGenerateExplanation` type
-- `src/shared/proto-conversions/cline-message.ts` - Added mapping for new say type
-- `src/core/controller/task/explainChanges.ts` - Handler implementation
-- `webview-ui/src/components/chat/ChatRow.tsx` - UI rendering
+### 3. Signup flow: InsForge password-first registration
 
-## Adding Tools to System Prompt
-This is tricky—multiple prompt variants and configs. **Always search for existing similar tools first and follow their pattern.** Look at the full chain from prompt definition → variant configs → handler → UI before implementing.
+**Flow**: User fills name + email + password → `POST /api/auth/users` creates account and sends 6-digit code → user enters code → `POST /api/auth/email/verify` → redirect to login.
 
-1. **Add to `ClineDefaultTool` enum** in `src/shared/tools.ts`
-2. **Tool definition** in `src/core/prompts/system-prompt/tools/` (create file like `generate_explanation.ts`)
-   - Define variants for each `ModelFamily` (generic, next-gen, xs, etc.)
-   - Export variants array (e.g., `export const my_tool_variants = [GENERIC, NATIVE_NEXT_GEN, XS]`)
-   - **Fallback behavior**: If a variant isn't defined for a model family, `ClineToolSet.getToolByNameWithFallback()` automatically falls back to GENERIC. So you only need to export `[GENERIC]` unless the tool needs model-specific behavior.
-3. **Register in `src/core/prompts/system-prompt/tools/init.ts`** - Import and spread into `allToolVariants`
-4. **Add to variant configs** - Each model family has its own config in `src/core/prompts/system-prompt/variants/*/config.ts`. Add your tool's enum to the `.tools()` list:
-   - `generic/config.ts`, `next-gen/config.ts`, `gpt-5/config.ts`, `native-gpt-5/config.ts`, `native-gpt-5-1/config.ts`, `native-next-gen/config.ts`, `gemini-3/config.ts`, `glm/config.ts`, `hermes/config.ts`, `xs/config.ts`
-   - **Important**: If you add to a variant's config, make sure the tool spec exports a variant for that ModelFamily (or relies on GENERIC fallback)
-5. **Create handler** in `src/core/task/tools/handlers/`
-6. **Wire up in `ToolExecutor.ts`** if needed for execution flow
-7. **Add to tool parsing** in `src/core/assistant-message/index.ts` if needed
-8. **If tool has UI feedback**: add `ClineSay` enum in proto, update `src/shared/ExtensionMessage.ts`, update `src/shared/proto-conversions/cline-message.ts`, update `webview-ui/src/components/chat/ChatRow.tsx`
+- InsForge `signUp()` requires password upfront (unlike old Supabase OTP-first flow)
+- Verification email is sent automatically on signup
+- Use `resendVerificationEmail()` / `POST /api/auth/email/send-verification` to resend
 
-## Modifying System Prompt
-**Read these first:** `src/core/prompts/system-prompt/README.md`, `tools/README.md`, `__tests__/README.md`
+### 4. Always verify deployed code matches your changes
 
-System prompt is modular: **components** (reusable sections) + **variants** (model-specific configs) + **templates** (with `{{PLACEHOLDER}}` resolution).
+**Problem**: DigitalOcean static site builds can take 1-3 minutes. Testing before deployment completes leads to false conclusions about bugs.
 
-**Key directories:**
-- `components/` - Shared sections: `rules.ts`, `capabilities.ts`, `editing_files.ts`, etc.
-- `variants/` - Model-specific: `generic/`, `next-gen/`, `xs/`, `gpt-5/`, `gemini-3/`, `hermes/`, `glm/`, etc.
-- `templates/` - Template engine and placeholder definitions
+**Rule**: After pushing, verify the deployed code actually reflects your changes before debugging.
 
-**Variant tiers (ask user which to modify):**
-- **Next-gen** (Claude 4, GPT-5, Gemini 2.5): `next-gen/`, `native-next-gen/`, `native-gpt-5/`, `native-gpt-5-1/`, `gemini-3/`, `gpt-5/`
-- **Standard** (default fallback): `generic/`
-- **Local/small models**: `xs/`, `hermes/`, `glm/`
+### 5. InsForge OAuth PKCE flow on static site
 
-**How overrides work:** Variants can override components via `componentOverrides` in their `config.ts`, or provide a custom template in `template.ts` (e.g., `next-gen/template.ts` exports `rules_template`). If no override, the shared component from `components/` is used.
+The Google OAuth flow on the static site uses InsForge's PKCE flow:
+1. Generate `code_verifier` + `code_challenge`, store verifier in `sessionStorage`
+2. `GET /api/auth/oauth/google?redirect_uri=...&code_challenge=...` → returns `{ authUrl }`
+3. Redirect to Google, user authenticates
+4. Google redirects back with `?insforge_code=...`
+5. Exchange: `POST /api/auth/oauth/exchange?client_type=desktop` with `{ code, code_verifier }`
+6. Get `{ accessToken, refreshToken }` → exchange with backend
 
-**Example: Adding a rule to RULES section**
-1. Check if variant overrides rules: look for `rules_template` in `variants/*/template.ts` or `componentOverrides.RULES` in `config.ts`
-2. If shared: modify `components/rules.ts`
-3. If overridden: modify that variant's template
-4. XS variant is special—has heavily condensed inline content in `template.ts`
+### 6. InsForge REST API client_type parameter
 
-**After any changes, regenerate snapshots:**
-```bash
-UPDATE_SNAPSHOTS=true npm run test:unit
-```
-Snapshots live in `__tests__/__snapshots__/`. Tests validate across model families and context variations (browser, MCP, focus chain).
-
-## Modifying Default Slash Commands
-Three places need updates:
-- `src/core/slash-commands/index.ts` - Command definitions
-- `src/core/prompts/commands.ts` - System prompt integration
-- `webview-ui/src/utils/slash-commands.ts` - Webview autocomplete
-
-## ChatRow Cancelled/Interrupted States
-When a ChatRow displays a loading/in-progress state (spinner), you must handle what happens when the task is cancelled. This is non-obvious because cancellation doesn't update the message content—you have to infer it from context.
-
-**The pattern:**
-1. A message has a `status` field (e.g., `"generating"`, `"complete"`, `"error"`) stored in `message.text` as JSON
-2. When cancelled mid-operation, the status stays `"generating"` forever—no one updates it
-3. To detect cancellation, check TWO conditions:
-   - `!isLast` — if this message is no longer the last message, something else happened after it (interrupted)
-   - `lastModifiedMessage?.ask === "resume_task" || "resume_completed_task"` — task was just cancelled and is waiting to resume
-
-**Example from `generate_explanation`:**
-```tsx
-const wasCancelled =
-    explanationInfo.status === "generating" &&
-    (!isLast ||
-        lastModifiedMessage?.ask === "resume_task" ||
-        lastModifiedMessage?.ask === "resume_completed_task")
-const isGenerating = explanationInfo.status === "generating" && !wasCancelled
-```
-
-**Why both checks?**
-- `!isLast` catches: cancelled → resumed → did other stuff → this old message is stale
-- `lastModifiedMessage?.ask === "resume_task"` catches: just cancelled, hasn't resumed yet, this message is still technically "last"
-
-**See also:** `BrowserSessionRow.tsx` uses similar pattern with `isLastApiReqInterrupted` and `isLastMessageResume`.
-
-**Backend side:** When streaming is cancelled, clean up properly (close tabs, clear comments, etc.) by checking `taskState.abort` after the streaming function returns.
+When calling InsForge auth endpoints from the static site (which serves a desktop app flow):
+- Always use `?client_type=desktop` to get `refreshToken` in the response body
+- Without this parameter, InsForge defaults to `web` mode which uses httpOnly cookies instead

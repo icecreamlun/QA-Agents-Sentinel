@@ -32,7 +32,11 @@ export enum ClineDefaultTool {
 	APPLY_PATCH = "apply_patch",
 	GENERATE_EXPLANATION = "generate_explanation",
 	USE_SKILL = "use_skill",
-	SENTINEL_QA_REPORT = "sentinel_qa_report",
+	AXOLOTL_QA_REPORT = "axolotl_qa_report",
+	AXOLOTL_DETECT_CHANGES = "axolotl_detect_changes",
+	AXOLOTL_GENERATE_PLAN = "axolotl_generate_plan",
+	AXOLOTL_ANALYZE_CODE = "axolotl_analyze_code",
+	AXOLOTL_WEB_SEARCH = "axolotl_web_search",
 }
 
 // Array of all tool names for compatibility
@@ -51,4 +55,5 @@ export const READ_ONLY_TOOLS = [
 	ClineDefaultTool.WEB_SEARCH,
 	ClineDefaultTool.WEB_FETCH,
 	ClineDefaultTool.USE_SKILL,
+	ClineDefaultTool.AXOLOTL_WEB_SEARCH,
 ] as const

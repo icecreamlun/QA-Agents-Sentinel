@@ -50,6 +50,21 @@ export const toolParamNames = [
 	"to_ref",
 	"skill_name",
 	"report_json",
+	// Axolotl QA tool parameters
+	"source",
+	"pr_identifier",
+	"file_paths",
+	"prd_description",
+	"changed_files",
+	"code_analysis",
+	"diff_content",
+	"test_cases",
+	"logs_cleanup_summary",
+	"analysis_type",
+	"search_pattern",
+	"focus_areas",
+	// Axolotl web search parameters
+	"search_query",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]

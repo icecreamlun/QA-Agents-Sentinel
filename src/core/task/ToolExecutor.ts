@@ -30,7 +30,6 @@ import { BrowserToolHandler } from "./tools/handlers/BrowserToolHandler"
 import { CondenseHandler } from "./tools/handlers/CondenseHandler"
 import { ExecuteCommandToolHandler } from "./tools/handlers/ExecuteCommandToolHandler"
 import { GenerateExplanationToolHandler } from "./tools/handlers/GenerateExplanationToolHandler"
-import { SentinelQAReportHandler } from "./tools/handlers/SentinelQAReportHandler"
 import { ListCodeDefinitionNamesToolHandler } from "./tools/handlers/ListCodeDefinitionNamesToolHandler"
 import { ListFilesToolHandler } from "./tools/handlers/ListFilesToolHandler"
 import { LoadMcpDocumentationHandler } from "./tools/handlers/LoadMcpDocumentationHandler"
@@ -39,6 +38,11 @@ import { PlanModeRespondHandler } from "./tools/handlers/PlanModeRespondHandler"
 import { ReadFileToolHandler } from "./tools/handlers/ReadFileToolHandler"
 import { ReportBugHandler } from "./tools/handlers/ReportBugHandler"
 import { SearchFilesToolHandler } from "./tools/handlers/SearchFilesToolHandler"
+import { AxolotlAnalyzeCodeHandler } from "./tools/handlers/AxolotlAnalyzeCodeHandler"
+import { AxolotlDetectChangesHandler } from "./tools/handlers/AxolotlDetectChangesHandler"
+import { AxolotlGeneratePlanHandler } from "./tools/handlers/AxolotlGeneratePlanHandler"
+import { AxolotlQAReportHandler } from "./tools/handlers/AxolotlQAReportHandler"
+import { AxolotlWebSearchHandler } from "./tools/handlers/AxolotlWebSearchHandler"
 import { SummarizeTaskHandler } from "./tools/handlers/SummarizeTaskHandler"
 import { UseMcpToolHandler } from "./tools/handlers/UseMcpToolHandler"
 import { UseSkillToolHandler } from "./tools/handlers/UseSkillToolHandler"
@@ -237,7 +241,11 @@ export class ToolExecutor {
 		this.coordinator.register(new ReportBugHandler())
 		this.coordinator.register(new ApplyPatchHandler(validator))
 		this.coordinator.register(new GenerateExplanationToolHandler())
-		this.coordinator.register(new SentinelQAReportHandler())
+		this.coordinator.register(new AxolotlQAReportHandler())
+		this.coordinator.register(new AxolotlDetectChangesHandler())
+		this.coordinator.register(new AxolotlGeneratePlanHandler())
+		this.coordinator.register(new AxolotlAnalyzeCodeHandler())
+		this.coordinator.register(new AxolotlWebSearchHandler())
 	}
 
 	/**

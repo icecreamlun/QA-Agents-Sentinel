@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Axolotl - Sign In</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: #f8f9fa;
+        color: #111827;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 40px 32px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      }
+
+      h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        text-align: center;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: #6b7280;
+        text-align: center;
+        margin-bottom: 28px;
+        line-height: 1.5;
+      }
+
+      .success-banner {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: #065f46;
+        text-align: center;
+        display: none;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+
+      .input-wrapper {
+        position: relative;
+      }
+
+      .input-wrapper input {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+        background: #fff;
+      }
+
+      .input-wrapper input:focus {
+        border-color: #111827;
+        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+      }
+
+      .input-wrapper input::placeholder {
+        color: #9ca3af;
+      }
+
+      .toggle-password {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #9ca3af;
+        display: flex;
+        align-items: center;
+      }
+
+      .toggle-password:hover {
+        color: #6b7280;
+      }
+
+      .toggle-password svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .input-wrapper.has-toggle input {
+        padding-right: 44px;
+      }
+
+      .btn-primary {
+        width: 100%;
+        background: #111827;
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 4px;
+      }
+
+      .btn-primary:hover {
+        background: #1f2937;
+      }
+
+      .btn-primary:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 20px 0;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e5e7eb;
+      }
+
+      .divider span {
+        font-size: 12px;
+        color: #9ca3af;
+        text-transform: uppercase;
+      }
+
+      .btn-google {
+        width: 100%;
+        background: #ffffff;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: background-color 0.2s, border-color 0.2s;
+      }
+
+      .btn-google:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+      }
+
+      .btn-google svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .links {
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .links a {
+        font-size: 14px;
+        color: #6b7280;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .links a:hover {
+        color: #111827;
+      }
+
+      .links .signup-link {
+        display: block;
+        margin-top: 12px;
+        font-size: 14px;
+        color: #6b7280;
+      }
+
+      .links .signup-link a {
+        color: #111827;
+        font-weight: 600;
+      }
+
+      .error-msg {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: #991b1b;
+        display: none;
+        text-align: center;
+      }
+
+      .status-msg {
+        text-align: center;
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 12px;
+        display: none;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #d1d5db;
+        border-top: 2px solid #111827;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Sign in</h1>
+      <p class="subtitle">Enter your email below to sign in to your account</p>
+
+      <div class="success-banner" id="success-banner">
+        Account created successfully! Please sign in.
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <div class="input-wrapper">
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrapper has-toggle">
+          <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+          <button type="button" class="toggle-password" id="toggle-password" aria-label="Toggle password visibility">
+            <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="sign-in-btn">Sign in</button>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="btn-google" id="google-btn">
+        <svg viewBox="0 0 24 24">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Sign in with Google
+      </button>
+
+      <div class="links">
+        <a href="#" id="forgot-password-link">Forgot your password?</a>
+        <div class="signup-link">
+          Don't have an account? <a href="signup.html" id="signup-link">Sign up</a>
+        </div>
+      </div>
+
+      <div class="status-msg" id="status-msg"></div>
+    </div>
+
+    <script>
+      // ── Config ──
+      var INSFORGE_BASE_URL = "https://4zxsfry3.us-west.insforge.app"
+      var API_BASE_URL = "https://whale-app-ae67c.ondigitalocean.app"
+
+      var params = new URLSearchParams(window.location.search)
+      var state = params.get("state")
+      var registered = params.get("registered")
+
+      // ── DOM elements ──
+      var emailInput = document.getElementById("email")
+      var passwordInput = document.getElementById("password")
+      var signInBtn = document.getElementById("sign-in-btn")
+      var googleBtn = document.getElementById("google-btn")
+      var errorMsg = document.getElementById("error-msg")
+      var statusMsg = document.getElementById("status-msg")
+      var successBanner = document.getElementById("success-banner")
+      var togglePasswordBtn = document.getElementById("toggle-password")
+      var eyeIcon = document.getElementById("eye-icon")
+      var eyeOffIcon = document.getElementById("eye-off-icon")
+      var forgotPasswordLink = document.getElementById("forgot-password-link")
+      var signupLink = document.getElementById("signup-link")
+
+      // ── Utility functions ──
+      function showError(msg) {
+        errorMsg.textContent = msg
+        errorMsg.style.display = "block"
+      }
+
+      function hideError() {
+        errorMsg.style.display = "none"
+      }
+
+      function showStatus(msg) {
+        statusMsg.innerHTML = '<span class="spinner"></span>' + msg
+        statusMsg.style.display = "block"
+      }
+
+      function hideStatus() {
+        statusMsg.style.display = "none"
+      }
+
+      function setLoading(loading) {
+        signInBtn.disabled = loading
+        googleBtn.disabled = loading
+      }
+
+      // ── PKCE helpers for OAuth ──
+      function generateRandomString(length) {
+        var array = new Uint8Array(length)
+        crypto.getRandomValues(array)
+        return btoa(String.fromCharCode.apply(null, array))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "")
+      }
+
+      function sha256Base64Url(str) {
+        var encoder = new TextEncoder()
+        var data = encoder.encode(str)
+        return crypto.subtle.digest("SHA-256", data).then(function (hash) {
+          return btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "")
+        })
+      }
+
+      // ── Navigation links ──
+      signupLink.addEventListener("click", function (e) {
+        e.preventDefault()
+        var signupUrl = state
+          ? "signup.html?state=" + encodeURIComponent(state)
+          : "signup.html"
+        window.location.href = signupUrl
+      })
+
+      // Password visibility toggle
+      togglePasswordBtn.addEventListener("click", function () {
+        var isPassword = passwordInput.type === "password"
+        passwordInput.type = isPassword ? "text" : "password"
+        eyeIcon.style.display = isPassword ? "none" : "block"
+        eyeOffIcon.style.display = isPassword ? "block" : "none"
+      })
+
+      // Show registered success banner
+      if (registered === "true") {
+        successBanner.style.display = "block"
+      }
+
+      // ── Forgot password ──
+      forgotPasswordLink.addEventListener("click", function (e) {
+        e.preventDefault()
+        var email = emailInput.value.trim()
+        if (!email) {
+          showError("Please enter your email address first.")
+          return
+        }
+        hideError()
+        showStatus("Sending password reset email...")
+
+        fetch(INSFORGE_BASE_URL + "/api/auth/email/send-reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email }),
+        })
+          .then(function (res) { return res.json() })
+          .then(function (data) {
+            hideStatus()
+            successBanner.textContent = "Password reset email sent! Check your inbox."
+            successBanner.style.display = "block"
+          })
+          .catch(function (err) {
+            hideStatus()
+            showError(err.message || "Failed to send reset email.")
+          })
+      })
+
+      // ── Sign in with email/password ──
+      signInBtn.addEventListener("click", signIn)
+      passwordInput.addEventListener("keydown", function (e) { if (e.key === "Enter") signIn() })
+      emailInput.addEventListener("keydown", function (e) { if (e.key === "Enter") passwordInput.focus() })
+
+      function signIn() {
+        var email = emailInput.value.trim()
+        var password = passwordInput.value
+        if (!email || !password) {
+          showError("Please enter both email and password.")
+          return
+        }
+        hideError()
+        setLoading(true)
+        showStatus("Signing in...")
+
+        fetch(INSFORGE_BASE_URL + "/api/auth/sessions?client_type=desktop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password }),
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data } })
+          })
+          .then(function (result) {
+            if (!result.ok) {
+              setLoading(false)
+              hideStatus()
+              if (result.data.error === "EMAIL_NOT_VERIFIED") {
+                showError("Please verify your email before signing in. Check your inbox.")
+              } else {
+                showError(result.data.message || "Sign in failed.")
+              }
+              return
+            }
+
+            if (state) {
+              exchangeWithBackend(result.data.accessToken, result.data.refreshToken)
+            } else {
+              setLoading(false)
+              hideStatus()
+              successBanner.textContent = "Signed in successfully! You can now use the VS Code extension."
+              successBanner.style.display = "block"
+            }
+          })
+          .catch(function (err) {
+            setLoading(false)
+            hideStatus()
+            showError(err.message || "An unexpected error occurred.")
+          })
+      }
+
+      // ── Sign in with Google (InsForge OAuth PKCE) ──
+      googleBtn.addEventListener("click", function () {
+        hideError()
+        showStatus("Redirecting to Google...")
+
+        var oauthCodeVerifier = generateRandomString(32)
+        sha256Base64Url(oauthCodeVerifier).then(function (oauthCodeChallenge) {
+          sessionStorage.setItem("insforge_oauth_code_verifier", oauthCodeVerifier)
+          if (state) {
+            sessionStorage.setItem("insforge_oauth_state", state)
+          }
+
+          var redirectUri = window.location.origin + window.location.pathname
+          if (state) {
+            redirectUri += "?state=" + encodeURIComponent(state)
+          }
+
+          var oauthParams = new URLSearchParams({
+            redirect_uri: redirectUri,
+            code_challenge: oauthCodeChallenge,
+          })
+
+          return fetch(INSFORGE_BASE_URL + "/api/auth/oauth/google?" + oauthParams.toString())
+        })
+          .then(function (res) { return res.json() })
+          .then(function (data) {
+            if (data.authUrl) {
+              window.location.href = data.authUrl
+            } else {
+              hideStatus()
+              showError("Failed to start Google sign-in.")
+            }
+          })
+          .catch(function (err) {
+            hideStatus()
+            showError(err.message || "Failed to start Google sign-in.")
+          })
+      })
+
+      // ── Handle OAuth callback (check for insforge_code on page load) ──
+      ;(function handleOAuthCallback() {
+        var insforgeCode = params.get("insforge_code")
+        if (!insforgeCode) return
+
+        var codeVerifier = sessionStorage.getItem("insforge_oauth_code_verifier")
+        var savedState = state || sessionStorage.getItem("insforge_oauth_state")
+
+        if (!codeVerifier) {
+          showError("OAuth session expired. Please try again.")
+          return
+        }
+
+        sessionStorage.removeItem("insforge_oauth_code_verifier")
+        sessionStorage.removeItem("insforge_oauth_state")
+
+        setLoading(true)
+        showStatus("Completing Google sign-in...")
+
+        fetch(INSFORGE_BASE_URL + "/api/auth/oauth/exchange?client_type=desktop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: insforgeCode, code_verifier: codeVerifier }),
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, data: data } })
+          })
+          .then(function (result) {
+            if (!result.ok) {
+              setLoading(false)
+              hideStatus()
+              showError(result.data.message || "Google sign-in failed.")
+              return
+            }
+
+            if (savedState) {
+              exchangeWithBackend(result.data.accessToken, result.data.refreshToken)
+            } else {
+              setLoading(false)
+              hideStatus()
+              successBanner.textContent = "Signed in with Google successfully!"
+              successBanner.style.display = "block"
+            }
+          })
+          .catch(function (err) {
+            setLoading(false)
+            hideStatus()
+            showError(err.message || "Failed to complete Google sign-in.")
+          })
+      })()
+
+      // ── Exchange tokens with backend ──
+      function exchangeWithBackend(accessToken, refreshToken) {
+        if (!state) {
+          setLoading(false)
+          showError("Missing state parameter. Please start login from VS Code.")
+          return
+        }
+        if (!accessToken) {
+          setLoading(false)
+          showError("No access token found.")
+          return
+        }
+
+        showStatus("Completing authentication...")
+
+        fetch(API_BASE_URL + "/v1/auth/code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            state: state,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          }),
+        })
+          .then(function (res) {
+            if (res.redirected) {
+              window.location.href = res.url
+              return null
+            }
+            return res.json().catch(function () { return {} })
+          })
+          .then(function (data) {
+            if (!data) return
+            if (data.redirect_url) {
+              showStatus("Redirecting back to VS Code...")
+              window.location.href = data.redirect_url
+              return
+            }
+
+            setLoading(false)
+            hideStatus()
+            showError("Authentication failed: " + (data.error || "Unknown error"))
+          })
+          .catch(function (err) {
+            setLoading(false)
+            hideStatus()
+            showError("Network error: " + err.message)
+          })
+      }
+    </script>
+  </body>
+</html>
